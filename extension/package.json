@@ -1,0 +1,66 @@
+{
+  "name": "devin-quota-status",
+  "displayName": "Devin Quota Status",
+  "description": "Live Devin daily/weekly quota percentages in the status bar (polls api.devin.ai via a stdlib Python helper).",
+  "publisher": "jespergarm",
+  "version": "0.5.1",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "keywords": [
+    "devin",
+    "quota",
+    "usage",
+    "status-bar",
+    "ai"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "devinQuota.refresh",
+        "title": "Devin Quota: Refresh"
+      }
+    ],
+    "configuration": {
+      "title": "Devin Quota",
+      "properties": {
+        "devinQuota.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Python 3 interpreter used to run quota.py. Empty = auto-detect (python/python3/py on PATH, then common install dirs). The Windows Store 'python' alias stub is ignored."
+        },
+        "devinQuota.intervalSeconds": {
+          "type": "number",
+          "default": 30,
+          "minimum": 10,
+          "description": "Seconds between quota refreshes"
+        },
+        "devinQuota.warnPercent": {
+          "type": "number",
+          "default": 90,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Show a warning notification when daily or weekly quota reaches this percentage"
+        },
+        "devinQuota.warnEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable quota warning notifications"
+        },
+        "devinQuota.logPath": {
+          "type": "string",
+          "default": "",
+          "description": "CSV path for the quota-percentage time series (row appended when the pct changes or hourly). Empty = log to the extension's global storage; 'off' disables logging."
+        }
+      }
+    }
+  }
+}
