@@ -2,3 +2,10 @@ __pycache__/
 *.pyc
 dist/
 data/
+.memory/
+org_id.txt
+*.log
+.env
+.env.*
+!.env.example
+promotion/

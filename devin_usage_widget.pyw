@@ -49,6 +49,15 @@ FX_TTL_SEC = 86400          # re-fetch the USD->DKK rate once a day
 MONTHLY_BUDGET_USD = 20.00  # Pro subscription, excl. 25% VAT
 QUOTA_TTL_SEC = 30          # re-poll the account quota every 30 s
 QUOTA_DAY_OFFSET = 8 * 3600  # quota days reset at 08:00 UTC
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Authenticated Devin calls must not carry the bearer token across a redirect.
+_DEVIN_OPENER = urllib.request.build_opener(_NoRedirect)
 # Billing cycle starts on the 1st of the month at 09:26 UTC — verified
 # against api.devin.ai /billing/subscription (current_period_start).
 
@@ -324,7 +333,7 @@ class UsageDB:
         out = {}
         for sid, title, model, la, meta in self._q(
                 "SELECT id, title, model, last_activity_at, metadata "
-                f"FROM sessions WHERE id IN ({marks})", tuple(ids)):
+                f"FROM sessions WHERE id IN ({marks})", tuple(ids)):  # nosec B608
             credits = acus = None
             if meta:
                 try:
@@ -615,7 +624,7 @@ def dkk_rate():
         fresh = False
     if not (cached and fresh):
         try:
-            r = json.load(urllib.request.urlopen(urllib.request.Request(
+            r = json.load(urllib.request.urlopen(urllib.request.Request(  # nosec B310
                 "https://api.frankfurter.dev/v1/latest?base=USD&symbols=DKK",
                 headers={"User-Agent": "Mozilla/5.0"}), timeout=3))
             rate = float(r["rates"]["DKK"])
@@ -644,7 +653,7 @@ _quota_thread = None
 
 def _read_session_token():
     """The Devin Desktop app's session token from its global state —
-    never leaves the machine, used read-only for quota lookups."""
+    sent only to Devin's own API endpoints; never printed or logged."""
     try:
         db = os.path.join(APPDATA, "devin", "User", "globalStorage",
                           "state.vscdb")
@@ -668,7 +677,7 @@ def _org_id(token):
     except Exception:
         st = {}
     try:
-        r = urllib.request.urlopen(urllib.request.Request(
+        r = _DEVIN_OPENER.open(urllib.request.Request(
             "https://app.devin.ai/api/auth/windsurf/eligible-organizations",
             headers={"Authorization": "Bearer " + token}), timeout=5)
         orgs = json.loads(r.read())
@@ -690,7 +699,7 @@ def _fetch_quota_bg():
         org = token and _org_id(token)
         if not org:
             return
-        r = urllib.request.urlopen(urllib.request.Request(
+        r = _DEVIN_OPENER.open(urllib.request.Request(
             f"https://api.devin.ai/{org}/billing/quota/usage",
             headers={"Authorization": "Bearer " + token,
                      "x-cog-org-id": org}), timeout=5)
@@ -825,7 +834,7 @@ class UsageLogger:
             with open(LOG_PATH, "a", newline="", encoding="utf-8") as f:
                 w = csv.writer(f)
                 if new:
-                    w.writerow(["timestamp_iso", "session_id", "title",
+                    w.writerow(["timestamp_iso", "session_id",
                                 "model", "messages", "input_tokens",
                                 "cached_input_tokens", "output_tokens",
                                 "total_tokens", "cost_usd"])
@@ -836,7 +845,7 @@ class UsageLogger:
                                  now - last[1] < LOG_MIN_INTERVAL):
                         continue
                     self._last[s["session_id"]] = (key, now)
-                    w.writerow([iso, s["session_id"], s["title"], s["model"],
+                    w.writerow([iso, s["session_id"], s["model"],
                                 s["messages"], s["input_tokens"],
                                 s["cached_input_tokens"], s["output_tokens"],
                                 s["total_tokens"], f"{s['cost_usd']:.4f}"])

@@ -6,7 +6,7 @@ Shows the live Devin account quota in the status bar (bottom-right):
 
 Polls `api.devin.ai/{org}/billing/quota/usage` via a small stdlib-only
 Python helper (`quota.py`) that reuses the Devin Desktop app's own
-session token (read from `state.vscdb`, never leaves the machine).
+session token (read from `state.vscdb`; it is only sent back to Devin's own API endpoints and is never logged or sent to a third party).
 
 - Click the status item to refresh immediately.
 - Tooltip shows reset times (local), extra-usage balance and last

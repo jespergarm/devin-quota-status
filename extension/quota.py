@@ -17,8 +17,8 @@ older than 3600 s. Missing/empty path = no logging.
 
 Ported from devin_usage_widget.pyw (_read_session_token / _org_id /
 _fetch_quota_bg / QuotaLogger seeding). The session token is read from
-Devin Desktop's own state and never leaves the machine / is never
-printed.
+Devin Desktop's own state, is sent only to Devin's own API
+endpoints, and is never printed or logged.
 """
 
 import csv
@@ -34,9 +34,18 @@ APPDATA = os.environ.get("APPDATA", "")
 TIMEOUT = 10
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Authenticated Devin calls must not carry the bearer token across a redirect.
+_DEVIN_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def _read_session_token():
     """The Devin Desktop app's session token from its global state —
-    never leaves the machine, used read-only for quota lookups."""
+    sent only to Devin's own API endpoints; never printed or logged."""
     try:
         db = os.path.join(APPDATA, "devin", "User", "globalStorage",
                           "state.vscdb")
@@ -62,7 +71,7 @@ def _org_id(token, cache_dir):
     except Exception:
         pass
     try:
-        r = urllib.request.urlopen(urllib.request.Request(
+        r = _DEVIN_OPENER.open(urllib.request.Request(
             "https://app.devin.ai/api/auth/windsurf/eligible-organizations",
             headers={"Authorization": "Bearer " + token}), timeout=TIMEOUT)
         orgs = json.loads(r.read())
@@ -133,7 +142,7 @@ def main():
         org = _org_id(token, sys.argv[1] if len(sys.argv) > 1 else ".")
         if not org:
             raise RuntimeError("could not resolve org id")
-        r = urllib.request.urlopen(urllib.request.Request(
+        r = _DEVIN_OPENER.open(urllib.request.Request(
             f"https://api.devin.ai/{org}/billing/quota/usage",
             headers={"Authorization": "Bearer " + token,
                      "x-cog-org-id": org}), timeout=TIMEOUT)

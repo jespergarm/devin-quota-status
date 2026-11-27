@@ -3,7 +3,7 @@
   "displayName": "Devin Quota Status",
   "description": "Live Devin daily/weekly quota percentages in the status bar (polls api.devin.ai via a stdlib Python helper).",
   "publisher": "jespergarm",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "license": "MIT",
   "engines": {
     "vscode": "^1.90.0"
@@ -62,5 +62,9 @@
         }
       }
     }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jespergarm/devin-quota-status.git"
   }
 }

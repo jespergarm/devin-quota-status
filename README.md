@@ -1,34 +1,45 @@
 # Devin Quota Status
 
-See your **live Devin account quota** at a glance — daily and weekly
-percentages right in the Devin Desktop status bar:
+Unofficial Windows utilities for seeing **live Devin account quota** before
+a session pauses:
 
-`$(pulse) Day 11% (Fri 16) · Week 6% (Sat 16)`
+- **Quota strip** — a tiny always-on-top `Day X% · Week Y%` strip with
+  reset times. Recommended for current Devin Desktop builds.
+- **Devin Desktop extension** — the original status-bar integration for
+  Devin Desktop builds that still show extension status-bar items.
+- **Usage analyzer** — a tkinter window showing running Devin CLI sessions,
+  token usage, estimated list-price cost, and per-model quota-day/week
+  breakdowns.
 
-No more wondering why a session paused: yellow at your warning
-threshold, red at 100%, with the reset time shown inline.
+> **Unofficial** — not affiliated with Cognition. These tools rely on
+> undocumented Devin Desktop/CLI internals, so a Devin update can break
+> them.
 
-> **Unofficial** — not affiliated with Cognition. Works by polling the
-> same `api.devin.ai/{org}/billing/quota/usage` endpoint the app uses,
-> via a tiny stdlib-only Python helper that reuses Devin Desktop's own
-> session token (read from `state.vscdb`; it never leaves your machine).
+## Quick start: quota strip
 
-## Features
+1. Install Python 3 for Windows. No third-party Python packages are needed.
+2. Download and extract the latest release, or clone this repository.
+3. Double-click `devin_quota_widget.pyw` (or run it with `pythonw`).
 
-- Status-bar item: `Day N% · Week N%` with reset times; click to refresh.
-- Tooltip: reset times (local), extra-usage balance, last update.
-- Colors: yellow at `warnPercent` (default 90), red at 100%.
-- One notification per quota scope when it crosses the threshold
-  (error notification at 100%); re-arms after reset.
-- Optional CSV time series of the percentages — one row on change or
-  hourly (great for calibrating "how many tokens is 1% of quota").
-- Polls every `intervalSeconds` (default 30) and on window focus.
+The strip appears near the top of the screen while Devin is running. Drag
+it with the left mouse button. Right-click it for **Refresh** or **Exit**.
 
-## Install
+To start it automatically at logon, review and then run:
 
-1. Grab `devin-quota-status-<version>.vsix` from
-   [Releases](../../releases) (or build it — below).
-2. Install into Devin Desktop:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\register_widget_task.ps1
+```
+
+The script only registers a per-user scheduled task; it does not install a
+service or require administrator rights.
+
+## Devin Desktop status-bar extension
+
+For Devin Desktop versions that still expose the extension status bar:
+
+1. Download `devin-quota-status-<version>.vsix` from
+   [Releases](../../releases).
+2. Install it:
 
    ```bat
    "%LOCALAPPDATA%\Programs\Devin\bin\devin-desktop.cmd" --install-extension devin-quota-status-<version>.vsix
@@ -36,58 +47,67 @@ threshold, red at 100%, with the reset time shown inline.
 
 3. `Ctrl+Shift+P` → `Developer: Reload Window`.
 
-**Requirements:** Devin Desktop (Windows) + any Python 3 (stdlib only —
-no packages). The extension auto-detects the interpreter
-(`devinQuota.pythonPath` overrides).
+The item shows `Day N% · Week N%`; click to refresh. It turns yellow at the
+warning threshold (default 90%) and red at 100%.
 
-## Settings
-
-| Setting | Default | Meaning |
-|---|---|---|
-| `devinQuota.pythonPath` | `""` (auto-detect) | Python 3 for `quota.py` |
-| `devinQuota.intervalSeconds` | `30` | Poll interval (min 10) |
-| `devinQuota.warnPercent` | `90` | Warning threshold |
-| `devinQuota.warnEnabled` | `true` | Warning notifications |
-| `devinQuota.logPath` | `""` (global storage) | CSV path, or `off` |
-
-## Build the VSIX
-
-No npm/vsce needed — `build_vsix.py` zips it with Python's `zipfile`:
-
-```bat
-python build_vsix.py
-```
-
-## Bonus: usage widget
-
-`devin_usage_widget.pyw` is a standalone stdlib-only tkinter tool that
-reads Devin CLI's `sessions.db` and shows per-session billed tokens and
-estimated cost (list price × daily ECB USD→DKK rate), plus per-model
-quota-day/week breakdowns:
+## Usage analyzer
 
 ```bat
 python devin_usage_widget.pyw          # always-on-top window
 python devin_usage_widget.pyw --dump   # print the table and exit
 ```
 
-Windows-only, no dependencies. See
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it works.
+This reads Devin CLI's local `sessions.db` read-only and estimates cost at
+list price using the daily ECB USD→DKK rate. Cost figures are estimates,
+not invoices.
 
-## How it works / docs
+## Privacy and credential handling
 
-- [docs/DATA-SOURCES.md](docs/DATA-SOURCES.md) — reverse-engineered
-  `sessions.db` schema, session-lock probing, `model_configs_v5.*.bin`
-  protobuf layout, quota endpoint.
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — data flow, billing
-  rule, file layout.
+The quota helper reads Devin Desktop's existing session token from the
+local `state.vscdb` database. The token is:
+
+- used only as a bearer token for Devin's own endpoints
+  (`app.devin.ai` and `api.devin.ai`),
+- never written to disk by this project,
+- never printed to the terminal or shown in the UI,
+- never sent to a third-party service.
+
+The only non-Devin network call is an unauthenticated exchange-rate lookup
+at `api.frankfurter.dev` used by the optional cost display.
+
+Runtime files are written under `data\` next to the scripts and are ignored
+by git. They can include quota history, org id, and aggregate token/cost usage
+in CSV logs. They are not uploaded anywhere, but you should not share
+that folder. Delete `data\` if you want to remove the
+local history.
+
+See [SECURITY.md](SECURITY.md) before publishing logs, screenshots, or bug
+reports.
+
+## Build the VSIX
+
+No npm/vsce dependency is required — `build_vsix.py` zips the extension
+with Python's standard library:
+
+```bat
+python build_vsix.py
+```
+
+## Documentation
+
+- [docs/DATA-SOURCES.md](docs/DATA-SOURCES.md) — reverse-engineered local
+  data formats and quota endpoint notes.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — data flow and file layout.
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — debugging recipes.
 
 ## Caveats
 
-- Relies on **undocumented internals** of Devin Desktop/CLI
-  (`state.vscdb` token, quota endpoint, `sessions.db` schema). A Devin
-  update can break it — `--dump` is the first thing to run.
-- Cost figures are **list-price estimates**, not your invoice.
+- Windows-only for the widgets and scheduled-task script.
+- Relies on undocumented internals (`state.vscdb`, quota endpoint,
+  `sessions.db` schema, model-config protobuf). If something breaks, run
+  `python devin_usage_widget.pyw --dump` first.
+- Cost and quota-correlation figures are reverse-engineered estimates, not
+  billing or invoice data.
 
 ## License
 
